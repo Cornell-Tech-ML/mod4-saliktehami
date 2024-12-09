@@ -274,26 +274,15 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # Create index arrays in local memory
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         in_index = cuda.local.array(MAX_DIMS, numba.int32)
-
-        # Calculate thread position
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-
-        # Check bounds first to avoid unnecessary work
         if i < out_size:
-            # Convert position to indices
             to_index(i, out_shape, out_index)
-            # Handle broadcasting
             broadcast_index(out_index, out_shape, in_shape, in_index)
-            # Calculate storage positions
-            out_pos = index_to_position(out_index, out_strides)
-            in_pos = index_to_position(in_index, in_strides)
-            # Apply function
-            out[out_pos] = fn(in_storage[in_pos])
-
-    # Compile with CUDA JIT
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(in_index, in_strides)
+            out[o] = fn(in_storage[j])
     return cuda.jit()(_map)  # type: ignore
 
 
@@ -385,23 +374,19 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
 
     # Load data into shared memory with bounds check
     if i < size:
-        cache[pos] = a[i]
+        val = float(a[i])
+        cache[pos] = val
+        cuda.syncthreads()
     else:
         cache[pos] = 0
-    cuda.syncthreads()
 
-    # Reduction using stride pattern
-    stride = BLOCK_DIM // 2
-    while stride > 0:
-        if pos < stride:
-            cache[pos] += cache[pos + stride]
-        cuda.syncthreads()
-        stride //= 2
-
-    # Write result to global memory
-    if pos == 0:
-        out[cuda.blockIdx.x] = cache[0]
-
+    if i < size:
+        for j in [1, 2, 4, 8, 16]:
+            if pos % (j*2) == 0:
+                cache[pos] += cache[pos + j]
+                cuda.syncthreads()
+        if pos == 0:
+            out[cuda.blockIdx.x] = cache[0]
 
 jit_sum_practice = cuda.jit()(_sum_practice)
 
@@ -476,32 +461,26 @@ def tensor_reduce(
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
+        cache[pos] = reduce_value
 
-        # Calculate output position and reduction size
-        to_index(out_pos, out_shape, out_index)
-        reduce_size = a_shape[reduce_dim]
+        if out_pos < out_size:
+            to_index(out_pos, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
 
-        # Load data into shared memory
-        if pos < reduce_size:
-            out_index[reduce_dim] = pos
-            a_pos = index_to_position(out_index, a_strides)
-            cache[pos] = a_storage[a_pos]
-        else:
-            cache[pos] = reduce_value
-        cuda.syncthreads()
-
-        # Reduction in shared memory
-        stride = BLOCK_DIM // 2
-        while stride > 0:
-            if pos < stride and pos + stride < reduce_size:
-                cache[pos] = fn(cache[pos], cache[pos + stride])
-            cuda.syncthreads()
-            stride //= 2
-
-        # Write result
-        if pos == 0:
-            out[out_pos] = cache[0]
-
+            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
+            if out_index[reduce_dim] < a_shape[reduce_dim]:
+                in_a = index_to_position(out_index, a_strides)
+                cache[pos] = a_storage[in_a]
+                cuda.syncthreads()
+                x = 0
+                while 2**x < BLOCK_DIM:
+                    j = 2**x
+                    if pos % (j*2) == 0:
+                        cache[pos] = fn(cache[pos], cache[pos + j])
+                    cuda.syncthreads()
+                    x += 1
+            if pos == 0:
+                out[o] = cache[0]
     return cuda.jit()(_reduce)  # type: ignore
 
 
@@ -687,7 +666,7 @@ def _tensor_matrix_multiply(
 
         # Sync before next iteration
         cuda.syncthreads()
-
+        
     # Write result to global memory
     if i < out_shape[1] and j < out_shape[2]:
         out_pos = batch * out_strides[0] + i * out_strides[1] + j * out_strides[2]

@@ -346,44 +346,23 @@ def _tensor_matrix_multiply(
         None : Fills in out
 
     """
-    # Get the batch stride (0 if broadcasting)
-    a_batch_stride = a_strides[0] if len(a_shape) > 2 and a_shape[0] > 1 else 0
-    b_batch_stride = b_strides[0] if len(b_shape) > 2 and b_shape[0] > 1 else 0
+    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
+    b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
 
-    # Get the contraction dimension (inner dimension for matrix multiply)
-    blocks = a_shape[-1]
-
-    # Get matrix dimensions
-    batch = out_shape[0] if len(out_shape) > 2 else 1
-    rows = out_shape[-2]
-    cols = out_shape[-1]
-
-    # Main computation loop
-    for batch_idx in prange(batch):
-        for i in range(rows):
-            for j in range(cols):
-                # Calculate starting positions
-                a_pos = batch_idx * a_batch_stride + i * a_strides[-2]
-                b_pos = batch_idx * b_batch_stride + j * b_strides[-1]
-
-                # Initialize accumulator
-                temp = 0.0
-
-                # Inner product loop
-                for _ in range(blocks):
-                    temp += a_storage[a_pos] * b_storage[b_pos]
-                    # Move to next position in contraction dimension
-                    a_pos += a_strides[-1]
-                    b_pos += b_strides[-2]
-
-                # Store result
-                out_pos = (
-                    (batch_idx * out_strides[0] if len(out_shape) > 2 else 0)
-                    + i * out_strides[-2]
-                    + j * out_strides[-1]
+    for i1 in prange(out_shape[0]):
+        for i2 in prange(out_shape[1]):
+            for i3 in prange(out_shape[2]):
+                a_inner = i1 * a_batch_stride + i2 * a_strides[1]
+                b_inner = i1 * b_batch_stride + i3 * b_strides[1]
+                acc = 0.0
+                for _ in range(a_shape[2]):
+                    acc += a_storage[a_inner] * b_storage[b_inner]
+                    a_inner += a_strides[2]
+                    b_inner += b_strides[1]
+                out_postion = (
+                    i1 * out_strides[0] + i2 * out_strides[1] + i3 * out_strides[2]
                 )
-                out[out_pos] = temp
-
+                out[out_postion] = acc
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
 assert tensor_matrix_multiply is not None
