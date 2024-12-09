@@ -90,8 +90,43 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    # Parallelize over batch and output channels
+    for i in prange(out_size):
+        # Convert position i to indices for output tensor
+        out_index = np.zeros(3, np.int32)
+        to_index(i, out_shape, out_index)
+        batch_idx, out_channel, out_pos = out_index
+
+        # Initialize accumulator for dot product
+        acc = 0.0
+        
+        # Iterate through all input channels and kernel positions
+        for in_channel in range(in_channels):
+            for k in range(kw):
+                if reverse:
+                    # For backward pass (reverse=True)
+                    in_pos = out_pos - (kw - k - 1)
+                else:
+                    # For forward pass (reverse=False)
+                    in_pos = out_pos + k
+
+                # Skip if outside input bounds
+                if in_pos < 0 or in_pos >= width:
+                    continue
+
+                # Calculate positions in input and weight tensors
+                input_idx = np.array([batch_idx, in_channel, in_pos], np.int32)
+                weight_idx = np.array([out_channel, in_channel, k], np.int32)
+                
+                input_pos = index_to_position(input_idx, input_strides)
+                weight_pos = index_to_position(weight_idx, weight_strides)
+                
+                # Accumulate the product
+                acc += input[input_pos] * weight[weight_pos]
+        
+        # Store result in output tensor
+        out_pos = index_to_position(out_index, out_strides)
+        out[out_pos] = acc
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -219,8 +254,52 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    # Parallelize over all output positions
+    for i in prange(out_size):
+        out_index = np.zeros(4, np.int32)
+        to_index(i, out_shape, out_index)
+        batch_idx, out_channel, out_h, out_w = out_index
+
+        acc = 0.0
+        
+        # Iterate through all input channels and kernel positions
+        for in_channel in range(in_channels):
+            for h in range(kh):
+                for w in range(kw):
+                    if reverse:
+                        # For backward pass
+                        in_h = out_h - (kh - h - 1)
+                        in_w = out_w - (kw - w - 1)
+                    else:
+                        # For forward pass
+                        in_h = out_h + h
+                        in_w = out_w + w
+
+                    # Skip if outside input bounds
+                    if (in_h < 0 or in_h >= height or 
+                        in_w < 0 or in_w >= width):
+                        continue
+
+                    # Calculate positions in input and weight tensors
+                    input_pos = (
+                        batch_idx * s10 +
+                        in_channel * s11 +
+                        in_h * s12 +
+                        in_w * s13
+                    )
+                    weight_pos = (
+                        out_channel * s20 +
+                        in_channel * s21 +
+                        h * s22 +
+                        w * s23
+                    )
+                    
+                    # Accumulate the product
+                    acc += input[input_pos] * weight[weight_pos]
+        
+        # Store result in output tensor
+        out_pos = index_to_position(out_index, out_strides)
+        out[out_pos] = acc
 
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
