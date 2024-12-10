@@ -24,12 +24,12 @@ class Max(Function):
     @staticmethod
     def forward(ctx: Context, input: Tensor, dim: int) -> Tensor:
         """Max forward pass"""
-        dims = int(dim.item())
+        dims = int(dim) if isinstance(dim, int) else int(dim.item())
         ctx.save_for_backward(input, dim)
         return max_reduce(input, dims)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, None]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Max backward pass"""
         input, dim = ctx.saved_values
         dims = int(dim.item())
