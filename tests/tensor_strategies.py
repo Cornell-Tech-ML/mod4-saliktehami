@@ -66,12 +66,25 @@ def indices(draw: DrawFn, layout: Tensor) -> UserIndex:
 @composite
 def tensors(
     draw: DrawFn,
+    *,
+    shape: Optional[UserShape] = None,
     numbers: SearchStrategy[float] = floats(
         allow_nan=False, min_value=-100, max_value=100
     ),
     backend: Optional[TensorBackend] = None,
-    shape: Optional[UserShape] = None,
 ) -> Tensor:
+    """
+    Draw tensor instances.
+
+    Args:
+        draw: Special argument from hypothesis
+        shape: Optional shape for the tensor
+        numbers: Strategy for generating numbers
+        backend: Optional backend to use
+
+    Returns:
+        Tensor: A new tensor with the specified properties
+    """
     backend = minitorch.SimpleBackend if backend is None else backend
     td = draw(tensor_data(numbers, shape=shape))
     return minitorch.Tensor(td, backend=backend)

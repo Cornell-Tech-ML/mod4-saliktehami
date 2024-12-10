@@ -7,8 +7,6 @@ from numba import njit as _njit
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -22,6 +20,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Numba njit decorator"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -87,9 +86,6 @@ def _tensor_conv1d(
         and in_channels == in_channels_
         and out_channels == out_channels_
     )
-    s1 = input_strides
-    s2 = weight_strides
-
     # Parallelize over batch and output channels
     for i in prange(out_size):
         # Convert position i to indices for output tensor
@@ -99,7 +95,7 @@ def _tensor_conv1d(
 
         # Initialize accumulator for dot product
         acc = 0.0
-        
+
         # Iterate through all input channels and kernel positions
         for in_channel in range(in_channels):
             for k in range(kw):
@@ -117,13 +113,13 @@ def _tensor_conv1d(
                 # Calculate positions in input and weight tensors
                 input_idx = np.array([batch_idx, in_channel, in_pos], np.int32)
                 weight_idx = np.array([out_channel, in_channel, k], np.int32)
-                
+
                 input_pos = index_to_position(input_idx, input_strides)
                 weight_pos = index_to_position(weight_idx, weight_strides)
-                
+
                 # Accumulate the product
                 acc += input[input_pos] * weight[weight_pos]
-        
+
         # Store result in output tensor
         out_pos = index_to_position(out_index, out_strides)
         out[out_pos] = acc
@@ -162,6 +158,7 @@ class Conv1dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the backward pass for a 1D Convolution"""
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -261,7 +258,7 @@ def _tensor_conv2d(
         batch_idx, out_channel, out_h, out_w = out_index
 
         acc = 0.0
-        
+
         # Iterate through all input channels and kernel positions
         for in_channel in range(in_channels):
             for h in range(kh):
@@ -276,27 +273,20 @@ def _tensor_conv2d(
                         in_w = out_w + w
 
                     # Skip if outside input bounds
-                    if (in_h < 0 or in_h >= height or 
-                        in_w < 0 or in_w >= width):
+                    if in_h < 0 or in_h >= height or in_w < 0 or in_w >= width:
                         continue
 
                     # Calculate positions in input and weight tensors
                     input_pos = (
-                        batch_idx * s10 +
-                        in_channel * s11 +
-                        in_h * s12 +
-                        in_w * s13
+                        batch_idx * s10 + in_channel * s11 + in_h * s12 + in_w * s13
                     )
                     weight_pos = (
-                        out_channel * s20 +
-                        in_channel * s21 +
-                        h * s22 +
-                        w * s23
+                        out_channel * s20 + in_channel * s21 + h * s22 + w * s23
                     )
-                    
+
                     # Accumulate the product
                     acc += input[input_pos] * weight[weight_pos]
-        
+
         # Store result in output tensor
         out_pos = index_to_position(out_index, out_strides)
         out[out_pos] = acc
@@ -333,6 +323,7 @@ class Conv2dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the backward pass for a 2D Convolution"""
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape

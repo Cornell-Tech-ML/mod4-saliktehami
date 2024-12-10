@@ -2,7 +2,7 @@ import pytest
 from hypothesis import given
 
 import minitorch
-from minitorch import Tensor, tensor
+from minitorch import Tensor
 
 from .strategies import assert_close
 from .tensor_strategies import tensors
