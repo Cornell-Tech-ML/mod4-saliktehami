@@ -130,3 +130,4 @@ dmypy.json
 *.\#*
 data/
 pyodide.venv_311/
+.venv_311/
