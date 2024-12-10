@@ -279,9 +279,9 @@ class Sigmoid(Function):
             Tensor: Sigmoid of the input tensor.
 
         """
-        out = t1.f.sigmoid_map(t1)
-        ctx.save_for_backward(out)
-        return out
+        sigma = t1.f.sigmoid_map(t1)
+        ctx.save_for_backward(sigma)
+        return sigma
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
@@ -289,7 +289,7 @@ class Sigmoid(Function):
 
         Args:
         ----
-            ctx (Context): Context with saved output tensor.
+            ctx (Context): Context with saved input tensor.
             grad_output (Tensor): Gradient of the output.
 
         Returns:
@@ -299,7 +299,6 @@ class Sigmoid(Function):
         """
         sigma: Tensor = ctx.saved_values[0]
         return sigma * (-sigma + 1.0) * grad_output
-
 
 class ReLU(Function):
     @staticmethod
