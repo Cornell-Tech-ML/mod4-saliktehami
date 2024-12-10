@@ -33,72 +33,113 @@ UserStrides: TypeAlias = Sequence[int]
 
 
 def index_to_position(index: Index, strides: Strides) -> int:
-    """Converts a multidimensional tensor `index` into a single-dimensional position in
-    storage based on strides.
+    """Converts a multidimensional tensor index into a single-dimensional position in storage based on strides.
 
     Args:
-        index : index tuple of ints
-        strides : tensor strides
+    ----
+        index (Index): Index tuple of ints representing the position in the tensor
+        strides (Strides): Tensor strides indicating the number of elements to step in each dimension
 
     Returns:
-        Position in storage
+    -------
+        int: Position in the storage array
 
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # ASSIGN2.1
+    position = 0
+    for ind, stride in zip(index, strides):
+        position += ind * stride
+    return position
+    # END ASSIGN2.1
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """Convert an `ordinal` to an index in the `shape`.
-    Should ensure that enumerating position 0 ... size of a
-    tensor produces every index exactly once. It
-    may not be the inverse of `index_to_position`.
+    Should ensure that enumerating position 0 ... size of a tensor produces every index exactly once.
+    It may not be the inverse of `index_to_position`.
 
     Args:
+    ----
         ordinal: ordinal position to convert.
-        shape : tensor shape.
-        out_index : return index corresponding to position.
+        shape: tensor shape.
+        out_index: return index corresponding to position.
 
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # ASSIGN2.1
+    cur_ord = ordinal + 0
+    for i in range(len(shape) - 1, -1, -1):
+        sh = shape[i]
+        out_index[i] = int(cur_ord % sh)
+        cur_ord = cur_ord // sh
+    # END ASSIGN2.1
 
 
 def broadcast_index(
     big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex
 ) -> None:
-    """Convert a `big_index` into `big_shape` to a smaller `out_index`
-    into `shape` following broadcasting rules. In this case
-    it may be larger or with more dimensions than the `shape`
-    given. Additional dimensions may need to be mapped to 0 or
-    removed.
+    """Convert a 'big_index' into 'big_shape' to a smaller 'out_index' into 'shape' following broadcasting rules.
+
+    In this case it may be larger or with more dimensions than the 'shape' given.
+    Additional dimensions may need to be mapped to 0 or removed.
 
     Args:
-        big_index : multidimensional index of bigger tensor
-        big_shape : tensor shape of bigger tensor
-        shape : tensor shape of smaller tensor
-        out_index : multidimensional index of smaller tensor
+    ----
+        big_index (Index): Multidimensional index of the bigger tensor
+        big_shape (Shape): Tensor shape of the bigger tensor
+        shape (Shape): Tensor shape of the smaller tensor
+        out_index (OutIndex): Output index buffer to be filled with the broadcast result
 
     Returns:
-        None
+    -------
+        None: Fills in the out_index buffer
 
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # ASSIGN2.2
+    for i, s in enumerate(shape):
+        if s > 1:
+            out_index[i] = big_index[i + (len(big_shape) - len(shape))]
+        else:
+            out_index[i] = 0
+    return None
+    # END ASSIGN2.2
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """Broadcast two shapes to create a new union shape.
 
     Args:
-        shape1 : first shape
-        shape2 : second shape
+    ----
+        shape1 (UserShape): First shape to be broadcast
+        shape2 (UserShape): Second shape to be broadcast
 
     Returns:
-        broadcasted shape
+    -------
+        UserShape: The resulting broadcast shape
 
     Raises:
-        IndexingError : if cannot broadcast
+    ------
+        IndexingError: If shapes cannot be broadcast together
 
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # ASSIGN2.2
+    a, b = shape1, shape2
+    m = max(len(a), len(b))
+    c_rev = [0] * m
+    a_rev = list(reversed(a))
+    b_rev = list(reversed(b))
+    for i in range(m):
+        if i >= len(a):
+            c_rev[i] = b_rev[i]
+        elif i >= len(b):
+            c_rev[i] = a_rev[i]
+        else:
+            c_rev[i] = max(a_rev[i], b_rev[i])
+            if a_rev[i] != c_rev[i] and a_rev[i] != 1:
+                raise IndexingError(f"Broadcast failure {a} {b}")
+            if b_rev[i] != c_rev[i] and b_rev[i] != 1:
+                raise IndexingError(f"Broadcast failure {a} {b}")
+    return tuple(reversed(c_rev))
+    # END ASSIGN2.2
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
@@ -141,7 +182,7 @@ class TensorData:
         self._shape = array(shape)
         self.strides = strides
         self.dims = len(strides)
-        self.size = int(prod(shape))
+        self.size = int(prod(list(shape)))
         self.shape = shape
         assert len(self._storage) == self.size
 
@@ -153,7 +194,8 @@ class TensorData:
     def is_contiguous(self) -> bool:
         """Check that the layout is contiguous, i.e. outer dimensions have bigger strides than inner dimensions.
 
-        Returns:
+        Returns
+        -------
             bool : True if contiguous
 
         """
@@ -166,9 +208,40 @@ class TensorData:
 
     @staticmethod
     def shape_broadcast(shape_a: UserShape, shape_b: UserShape) -> UserShape:
+        """Broadcast two shapes to create a new union shape.
+
+        Args:
+        ----
+            shape_a: First shape to broadcast
+            shape_b: Second shape to broadcast
+
+        Returns:
+        -------
+            A new shape that both input shapes can be broadcast to
+
+        Raises:
+        ------
+            IndexingError: If shapes cannot be broadcast together
+
+        """
         return shape_broadcast(shape_a, shape_b)
 
     def index(self, index: Union[int, UserIndex]) -> int:
+        """Convert a multidimensional index into a single position in storage.
+
+        Args:
+        ----
+            index: Index tuple or single integer index
+
+        Returns:
+        -------
+            Position in the underlying storage array
+
+        Raises:
+        ------
+            IndexingError: If index is out of bounds or invalid
+
+        """
         if isinstance(index, int):
             aindex: Index = array([index])
         else:  # if isinstance(index, tuple):
@@ -192,6 +265,13 @@ class TensorData:
         return index_to_position(array(index), self._strides)
 
     def indices(self) -> Iterable[UserIndex]:
+        """Generate all valid indices for this tensor.
+
+        Yields
+        ------
+            Tuples containing valid indices to access this tensor's data
+
+        """
         lshape: Shape = array(self.shape)
         out_index: Index = array(self.shape)
         for i in range(self.size):
@@ -203,10 +283,29 @@ class TensorData:
         return tuple((random.randint(0, s - 1) for s in self.shape))
 
     def get(self, key: UserIndex) -> float:
+        """Get the value at the given multidimensional index.
+
+        Args:
+        ----
+            key: Index tuple to access
+
+        Returns:
+        -------
+            Value stored at the given index
+
+        """
         x: float = self._storage[self.index(key)]
         return x
 
     def set(self, key: UserIndex, val: float) -> None:
+        """Set the value at the given multidimensional index.
+
+        Args:
+        ----
+            key: Index tuple to access
+            val: Value to set at the given position
+
+        """
         self._storage[self.index(key)] = val
 
     def tuple(self) -> Tuple[Storage, Shape, Strides]:
@@ -217,17 +316,25 @@ class TensorData:
         """Permute the dimensions of the tensor.
 
         Args:
-            *order: a permutation of the dimensions
+        ----
+            order (list): a permutation of the dimensions
 
         Returns:
+        -------
             New `TensorData` with the same storage and a new dimension order.
 
         """
         assert list(sorted(order)) == list(
             range(len(self.shape))
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
+        # ASSIGN2.1
+        return TensorData(
+            self._storage,
+            tuple([self.shape[o] for o in order]),
+            tuple([self._strides[o] for o in order]),
+        )
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+    # END ASSIGN2.1
 
     def to_string(self) -> str:
         """Convert to string"""

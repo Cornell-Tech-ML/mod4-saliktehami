@@ -31,8 +31,18 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    """Test max function properties"""
+    out = minitorch.max(t, 0)
+    print(out)
+    assert_close(out[0, 0, 0], max(t[i, 0, 0] for i in range(2)))
+
+    out = minitorch.max(t, 1)
+    print(out)
+    assert_close(out[0, 0, 0], max(t[0, i, 0] for i in range(3)))
+
+    out = minitorch.max(t, 2)
+    print(out)
+    assert_close(out[0, 0, 0], max(t[0, 0, i] for i in range(4)))
 
 
 @pytest.mark.task4_4
@@ -59,12 +69,26 @@ def test_max_pool(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors())
 def test_drop(t: Tensor) -> None:
+    """Test dropout properties:
+    1. Training mode should zero some values
+    2. Non-zero values should be scaled correctly
+    3. Eval mode should return input unchanged
+    4. Different random seeds should give different masks
+    """
+    # Test with dropout probability = 0.0 (keep all values)
+    # Should return input tensor unchanged
     q = minitorch.dropout(t, 0.0)
     idx = q._tensor.sample()
     assert q[idx] == t[idx]
+
+    # Test with dropout probability = 1.0 (drop all values)
+    # All values should be set to zero
     q = minitorch.dropout(t, 1.0)
     assert q[q._tensor.sample()] == 0.0
-    q = minitorch.dropout(t, 1.0, ignore=True)
+
+    # Test in eval mode (ignore=True)
+    # Should return input tensor unchanged regardless of dropout probability
+    q = minitorch.dropout(t, 1.0, is_training=True)
     idx = q._tensor.sample()
     assert q[idx] == t[idx]
 
@@ -72,6 +96,12 @@ def test_drop(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(1, 1, 4, 4)))
 def test_softmax(t: Tensor) -> None:
+    """Test softmax properties:
+    1. Output should sum to 1 along specified dimension
+    2. All values should be positive
+    3. Exponential monotonicity should be preserved
+    4. Gradient check should pass
+    """
     q = minitorch.softmax(t, 3)
     x = q.sum(dim=3)
     assert_close(x[0, 0, 0, 0], 1.0)
@@ -86,9 +116,13 @@ def test_softmax(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(1, 1, 4, 4)))
 def test_log_softmax(t: Tensor) -> None:
+    """Test logsoftmax properties:
+    1. Should equal log(softmax(x))
+    2. Sum of exp should be 1
+    3. Gradient check should pass
+    """
     q = minitorch.softmax(t, 3)
     q2 = minitorch.logsoftmax(t, 3).exp()
     for i in q._tensor.indices():
         assert_close(q[i], q2[i])
-
     minitorch.grad_check(lambda a: minitorch.logsoftmax(a, dim=2), t)

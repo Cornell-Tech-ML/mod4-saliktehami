@@ -4,17 +4,45 @@ Be sure you have minitorch installed in you Virtual Env.
 """
 
 import minitorch
+import random
 
-# Use this function to make a random parameter in
-# your module.
 def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
 
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers):
+        super().__init__()
+
+        # Submodules
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, x):
+        # ASSIGN2.5
+        h = self.layer1.forward(x).relu()
+        h = self.layer2.forward(h).relu()
+        return self.layer3.forward(h).sigmoid()
+        # END ASSIGN2.5
+
+class Linear(minitorch.Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.out_size = out_size
+
+    def forward(self, x):
+        # ASSIGN2.5
+        batch, in_size = x.shape
+        return (
+            self.weights.value.view(1, in_size, self.out_size)
+            * x.view(batch, in_size, 1)
+        ).sum(1).view(batch, self.out_size) + self.bias.value.view(self.out_size)
 
 def default_log_fn(epoch, total_loss, correct, losses):
-    print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
-
+    print(f"Epoch {epoch}, Loss: {total_loss:.4f}, Correct: {correct}")
 
 class TensorTrain:
     def __init__(self, hidden_layers):
@@ -36,16 +64,27 @@ class TensorTrain:
         X = minitorch.tensor(data.X)
         y = minitorch.tensor(data.y)
 
+        print(f"Training data X shape: {X.shape}")
+        print(f"Training data y shape: {y.shape}")
+
         losses = []
         for epoch in range(1, self.max_epochs + 1):
+            if epoch % 50 == 0:  # Print every 50 epochs
+                print(f"\nEpoch {epoch}:")
+                print(f"Layer1 weight mean: {self.model.layer1.weights.value.sum()[0]}")
+                print(f"Layer2 weight mean: {self.model.layer2.weights.value.sum()[0]}")
+                print(f"Layer3 weight mean: {self.model.layer3.weights.value.sum()[0]}")
+
             total_loss = 0.0
             correct = 0
             optim.zero_grad()
 
             # Forward
             out = self.model.forward(X).view(data.N)
-            prob = (out * y) + (out - 1.0) * (y - 1.0)
+            if epoch % 50 == 0:
+                print(f"Output mean: {out.sum()[0] / data.N}")
 
+            prob = (out * y) + (out - 1.0) * (y - 1.0)
             loss = -prob.log()
             (loss / data.N).sum().view(1).backward()
             total_loss = loss.sum().view(1)[0]
@@ -63,7 +102,7 @@ class TensorTrain:
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
-    RATE = 0.5
+    HIDDEN = 8
+    RATE = 0.1
     data = minitorch.datasets["Simple"](PTS)
     TensorTrain(HIDDEN).train(data, RATE)

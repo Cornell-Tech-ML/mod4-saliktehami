@@ -1,0 +1,55 @@
+> git -c user.useConfigOnly=true commit --quiet --allow-empty-message --file -
+[INFO] Installing environment for https://github.com/pre-commit/pre-commit-hooks.
+[INFO] Once installed this environment will be reused.
+[INFO] This may take a few minutes...
+[INFO] Installing environment for https://github.com/astral-sh/ruff-pre-commit.
+[INFO] Once installed this environment will be reused.
+[INFO] This may take a few minutes...
+[INFO] Installing environment for https://github.com/RobertCraigie/pyright-python.
+[INFO] Once installed this environment will be reused.
+[INFO] This may take a few minutes...
+check for added large files..............................................Failed
+- hook id: check-added-large-files
+- exit code: 1
+
+.venv_311/share/jupyter/nbextensions/plotlywidget/index.js (7932 KB) exceeds 500 KB.
+.venv_311/share/jupyter/nbextensions/pydeck/index.js (2534 KB) exceeds 500 KB.
+.venv_311/share/jupyter/nbextensions/pydeck/index.js.map (11516 KB) exceeds 500 KB.
+
+check for case conflicts.................................................Passed
+check docstring is first.................................................Passed
+check for merge conflicts................................................Passed
+check for broken symlinks................................................Passed
+check toml...............................................................Passed
+debug statements (python)................................................Passed
+mixed line ending........................................................Passed
+fix requirements.txt.................................(no files to check)Skipped
+trim trailing whitespace.................................................Passed
+ruff.....................................................................Failed
+- hook id: ruff
+- exit code: 1
+
+warning: The top-level linter settings are deprecated in favour of their counterparts in the `lint` section. Please update the following options in `pyproject.toml`:
+  - 'fixable' -> 'lint.fixable'
+  - 'ignore' -> 'lint.ignore'
+  - 'select' -> 'lint.select'
+  - 'unfixable' -> 'lint.unfixable'
+  - 'extend-per-file-ignores' -> 'lint.extend-per-file-ignores'
+warning: The following rules have been removed and ignoring them has no effect:
+    - ANN101
+    - ANN102
+
+warning: `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible. Ignoring `one-blank-line-before-class`.
+.venv_311/bin/get_objgraph:30:1: E402 Module level import not at top of file
+   |
+29 | load_types(pickleable=True, unpickleable=True)
+30 | from dill import objects
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ E402
+31 |
+32 | if __name__ == "__main__":
+   |
+
+Found 1 error.
+
+ruff-format..............................................................Passed
+pyright..................................................................Passed
