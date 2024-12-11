@@ -1,0 +1,33 @@
+Parameters:
+train_size = 2000
+validation_size = 100
+learning_rate = 0.01
+max_epochs = 25
+
+
+Output:
+(.venv_311) saliktehami@Saliks-Mac-mini mod4-saliktehami % python project/run_sentiment.py
+
+missing pre-trained embedding for 188 unknown words
+Epoch 1, loss 137.84168272647065, train accuracy: 53.20%
+Validation accuracy: 50.00%
+Best Valid accuracy: 50.00%
+Epoch 2, loss 134.2876915175288, train accuracy: 57.55%
+Validation accuracy: 62.00%
+Best Valid accuracy: 62.00%
+Epoch 3, loss 131.14896600905323, train accuracy: 60.00%
+Validation accuracy: 60.00%
+Best Valid accuracy: 62.00%
+Epoch 4, loss 125.3127965809929, train accuracy: 64.65%
+Validation accuracy: 65.00%
+Best Valid accuracy: 65.00%
+Epoch 5, loss 119.48204762809581, train accuracy: 68.00%
+Validation accuracy: 69.00%
+Best Valid accuracy: 69.00%
+Epoch 6, loss 114.03502773580651, train accuracy: 68.40%
+Validation accuracy: 69.00%
+Best Valid accuracy: 69.00%
+Epoch 7, loss 107.71214502170581, train accuracy: 70.10%
+Validation accuracy: 74.00%
+Best Valid accuracy: 74.00%
+^CTraceback (most recent call last):

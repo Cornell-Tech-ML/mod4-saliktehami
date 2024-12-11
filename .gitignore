@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 *.\#*
 data/
-pyodide
+pyodide.venv_311/
+.venv_311/
