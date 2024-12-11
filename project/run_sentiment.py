@@ -34,8 +34,7 @@ class Conv1d(minitorch.Module):
         self.bias = RParam(1, out_channels, 1)
 
     def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        return minitorch.conv1d(input, self.weights.value) + self.bias.value
 
 
 class CNNSentimentKim(minitorch.Module):
@@ -48,7 +47,7 @@ class CNNSentimentKim(minitorch.Module):
         feature_map_size=100 output channels and [3, 4, 5]-sized kernels
         followed by a non-linear activation function (the paper uses tanh, we apply a ReLu)
     2. Apply max-over-time across each feature map
-    3. Apply a Linear to size C (number of classes) followed by a ReLU and Dropout with rate 25%
+    3. Apply a Linear to size C (number of classes) followed by Dropout with rate 25%
     4. Apply a sigmoid over the class dimension.
     """
 
@@ -61,16 +60,39 @@ class CNNSentimentKim(minitorch.Module):
     ):
         super().__init__()
         self.feature_map_size = feature_map_size
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.dropout = dropout
+
+        # Create the three parallel convolution layers
+        self.conv1 = Conv1d(embedding_size, feature_map_size, filter_sizes[0])
+        self.conv2 = Conv1d(embedding_size, feature_map_size, filter_sizes[1])
+        self.conv3 = Conv1d(embedding_size, feature_map_size, filter_sizes[2])
+
+        # Linear layer for final classification
+        self.linear = Linear(feature_map_size, 1)
 
     def forward(self, embeddings):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        # Permute for conv1d [batch x embedding_dim x sentence_length]
+        x = embeddings.permute(0, 2, 1)
 
+        # 1. Apply convolutions and ReLU
+        h1 = self.conv1(x).relu()
+        h2 = self.conv2(x).relu()
+        h3 = self.conv3(x).relu()
+
+        # 2. Max-over-time pooling and combine results
+        h = minitorch.max(h1, 2) + minitorch.max(h2, 2) + minitorch.max(h3, 2)
+
+        # 3. Linear layer
+        h = self.linear(h.view(h.shape[0], self.feature_map_size))
+
+        # Apply dropout
+        h = minitorch.dropout(h, self.dropout)
+
+        # 4. Sigmoid activation
+        return h.sigmoid().view(h.shape[0])
 
 # Evaluation helper methods
 def get_predictions_array(y_true, model_output):
@@ -253,10 +275,10 @@ def encode_sentiment_data(dataset, pretrained_embeddings, N_train, N_val=0):
 
 
 if __name__ == "__main__":
-    train_size = 450
+    train_size = 2000
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 250
+    max_epochs = 25
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),
