@@ -74,7 +74,7 @@ class Network(minitorch.Module):
     def forward(self, x):
         self.mid = self.conv1.forward(x).relu()
         self.out = self.conv2.forward(self.mid).relu()
-        self.out = minitorch.avgpool2d(self.out, 4, 4)
+        self.out = minitorch.avgpool2d(self.out, (4, 4))
         self.out = self.out.view(BATCH, 392)
         self.out = self.linear1.forward(self.out).relu()
         self.out = minitorch.dropout(self.out, 0.25)
@@ -178,5 +178,5 @@ class ImageTrain:
 
 
 if __name__ == "__main__":
-    data_train, data_val = (make_mnist(0, 5000), make_mnist(10000, 10500))
-    ImageTrain().train(data_train, data_val, learning_rate=0.01)
+    data_train, data_val = (make_mnist(0, 10000), make_mnist(10000, 10500))
+    ImageTrain().train(data_train, data_val, learning_rate=0.001, max_epochs=25)
