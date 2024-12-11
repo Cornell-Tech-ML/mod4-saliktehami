@@ -157,7 +157,18 @@ def logsoftmax(input: Tensor, dim: int) -> Tensor:
         Tensor of same shape with log softmax applied
 
     """
-    return softmax(input, dim).log()
+    # Step 1: Find max value along dimension
+    input_max = max(input, dim)
+
+    # Step 2: Subtract max from input (stabilizes computation)
+    shifted = input - input_max
+
+    # Step 3: Compute exp and its sum
+    exp_shifted = shifted.exp()
+    sum_exp = exp_shifted.sum(dim)
+
+    # Step 4: Compute final result
+    return shifted - sum_exp.log()
 
 
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
